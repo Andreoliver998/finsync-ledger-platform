@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppCard } from './AppCard';
 import { theme } from '@theme/index';
@@ -39,6 +40,12 @@ export function InsightCard({ icon = 'sparkles', title, description, tone = 'pri
 
   return (
     <AppCard variant="elevated" style={[styles.card, style]}>
+      <LinearGradient
+        colors={[palette.bg, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1.2, y: 1.2 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       <View style={styles.headerRow}>
         <View style={[styles.iconWrap, { backgroundColor: palette.bg }]}>
           <Ionicons name={icon} size={18} color={palette.color} />
@@ -65,11 +72,13 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md
   },
   iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)'
   },
   title: {
     flex: 1,

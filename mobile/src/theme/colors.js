@@ -33,5 +33,11 @@ export const colors = {
   mutedStrong: '#64748B',
 
   overlay: 'rgba(2, 2, 12, 0.65)',
-  shadow: 'rgba(0, 0, 0, 0.45)'
+  shadow: 'rgba(0, 0, 0, 0.45)',
+
+  primaryGlow: 'rgba(124, 58, 237, 0.30)',
+  successGlow: 'rgba(34, 197, 94, 0.22)',
+  dangerGlow: 'rgba(239, 68, 68, 0.22)',
+  secondaryGlow: 'rgba(6, 182, 212, 0.22)',
+  accentGlow: 'rgba(157, 255, 44, 0.22)'
 };

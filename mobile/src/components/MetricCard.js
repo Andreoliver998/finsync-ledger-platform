@@ -29,6 +29,7 @@ export function MetricCard({ label, value, caption, tone = 'neutral', delta, sty
 
   return (
     <AppCard style={[styles.card, style]}>
+      <View style={[styles.accentStripe, { backgroundColor: palette.color }]} />
       <View style={styles.headerRow}>
         <Text style={styles.label}>{label}</Text>
         {delta ? (
@@ -49,6 +50,13 @@ const styles = StyleSheet.create({
   card: {
     minHeight: 110,
     justifyContent: 'space-between'
+  },
+  accentStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3
   },
   headerRow: {
     flexDirection: 'row',

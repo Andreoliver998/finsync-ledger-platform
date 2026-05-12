@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { theme } from '@theme/index';
 
@@ -15,9 +16,14 @@ export function ActionCard({ icon, iconColor, iconBg, title, subtitle, onPress, 
       android_ripple={{ color: theme.colors.primarySoft }}
       style={({ pressed }) => [styles.card, disabled && styles.disabled, pressed && styles.pressed, style]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: bg }]}>
+      <LinearGradient
+        colors={[bg, theme.colors.surfaceElevated]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.iconWrap}
+      >
         <Ionicons name={icon} size={20} color={color} />
-      </View>
+      </LinearGradient>
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
@@ -38,9 +44,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderStrong,
     padding: theme.spacing.lg,
     gap: theme.spacing.md
   },

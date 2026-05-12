@@ -5,7 +5,10 @@ import { theme } from '@theme/index';
 
 export function AppCard({ children, onPress, style, variant = 'default', disabled }) {
   const variantStyle =
-    variant === 'elevated' ? styles.elevated : variant === 'outline' ? styles.outline : styles.default;
+    variant === 'elevated' ? styles.elevated :
+    variant === 'outline' ? styles.outline :
+    variant === 'premium' ? styles.premium :
+    styles.default;
 
   const Container = onPress ? Pressable : View;
   const containerStyle = [styles.base, variantStyle, style];
@@ -52,6 +55,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.colors.border
+  },
+  premium: {
+    backgroundColor: theme.colors.surface2,
+    borderWidth: 1,
+    borderColor: theme.colors.borderStrong,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10
   },
   pressed: {
     opacity: 0.85,

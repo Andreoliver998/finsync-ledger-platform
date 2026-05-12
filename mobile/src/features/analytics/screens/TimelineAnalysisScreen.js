@@ -2,15 +2,19 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
 
 import { AppCard } from '@components/AppCard';
 import { AppScreen } from '@components/AppScreen';
 import { EmptyState } from '@components/EmptyState';
+import { ErrorState } from '@components/ErrorState';
+import { ListSkeleton } from '@components/LoadingSkeleton';
 import { theme } from '@theme/index';
 import { formatShortDate } from '@utils/date';
 import { formatBRLCompact } from '@utils/money';
 import { normalizeTransaction } from '@utils/analyticsData';
 import { buildStableKey } from '@utils/buildStableKey';
+import { fetchAllTransactions } from '../api/analyticsApi';
 
 function groupByDay(items) {
   return items.reduce((acc, item) => {
@@ -21,13 +25,63 @@ function groupByDay(items) {
   }, {});
 }
 
+// Converte period shorthand ('7d','30d','90d','1y') em startDate ISO
+function periodToStartDate(period) {
+  const days = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[period];
+  if (!days) return null;
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+}
+
 export function TimelineAnalysisScreen({ route }) {
-  const items = useMemo(
+  const paramItems = useMemo(
     () => (Array.isArray(route?.params?.items) ? route.params.items.map(normalizeTransaction) : []),
     [route?.params?.items]
   );
+  const hasParamItems = paramItems.length > 0;
+
+  // Monta params da API respeitando filtros de período vindos da navegação
+  const apiParams = useMemo(() => {
+    const p = { limit: 100 };
+    const startDate =
+      route?.params?.startDate || periodToStartDate(route?.params?.period) || null;
+    const endDate = route?.params?.endDate || null;
+    if (startDate) p.startDate = startDate;
+    if (endDate) p.endDate = endDate;
+    return p;
+  }, [route?.params?.startDate, route?.params?.endDate, route?.params?.period]);
+
+  // Busca dados reais quando não há itens nos params (fallback preservado)
+  const query = useQuery({
+    queryKey: ['timeline-analysis-transactions', apiParams],
+    queryFn: () => fetchAllTransactions(apiParams),
+    enabled: !hasParamItems,
+    staleTime: 2 * 60 * 1000
+  });
+
+  const items = useMemo(() => {
+    if (hasParamItems) return paramItems;
+    const raw = query.data?.transactions ?? query.data ?? [];
+    return (Array.isArray(raw) ? raw : []).map(normalizeTransaction);
+  }, [hasParamItems, paramItems, query.data]);
+
   const grouped = useMemo(() => groupByDay(items), [items]);
   const days = Object.entries(grouped);
+
+  if (!hasParamItems && query.isPending) {
+    return (
+      <AppScreen padded>
+        <ListSkeleton rows={6} />
+      </AppScreen>
+    );
+  }
+
+  if (!hasParamItems && query.isError) {
+    return (
+      <AppScreen padded>
+        <ErrorState error={query.error} onRetry={() => query.refetch()} />
+      </AppScreen>
+    );
+  }
 
   if (!days.length) {
     return (
@@ -35,14 +89,14 @@ export function TimelineAnalysisScreen({ route }) {
         <EmptyState
           icon="pulse-outline"
           title="Timeline indisponível"
-          description="Abra a timeline a partir de um dossiê, transação ou insight com histórico associado."
+          description="Nenhuma movimentação encontrada. Importe extratos para visualizar a timeline analítica."
         />
       </AppScreen>
     );
   }
 
   return (
-    <AppScreen scroll>
+    <AppScreen scroll refreshing={!hasParamItems && query.isFetching} onRefresh={!hasParamItems ? () => query.refetch() : undefined}>
       <LinearGradient
         colors={['rgba(6,182,212,0.14)', 'rgba(124,58,237,0.16)', 'rgba(157,255,44,0.08)']}
         style={styles.hero}

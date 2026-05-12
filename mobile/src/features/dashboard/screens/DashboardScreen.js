@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -148,6 +149,10 @@ export function DashboardScreen({ navigation }) {
       <View style={styles.heading}>
         <Text style={styles.hello}>Olá, {user?.name?.split(' ')?.[0] || 'investigador'}</Text>
         <Text style={styles.title}>Sua visão financeira</Text>
+        <View style={styles.taglineRow}>
+          <View style={styles.taglineDot} />
+          <Text style={styles.tagline}>FinSync — análise em tempo real</Text>
+        </View>
       </View>
 
       <ScreenIntro
@@ -166,6 +171,12 @@ export function DashboardScreen({ navigation }) {
         <>
           {/* Balance card */}
           <AppCard variant="elevated" style={styles.balanceCard}>
+            <LinearGradient
+              colors={[theme.colors.primarySoft, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1.4, y: 1.4 }}
+              style={StyleSheet.absoluteFillObject}
+            />
             <Text style={styles.balanceLabel}>Saldo consolidado</Text>
             <Text style={styles.balanceValue}>{formatBRL(balance)}</Text>
             <View style={styles.balanceFooter}>
@@ -389,13 +400,37 @@ export function DashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  heading: { paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
-  hello: { color: theme.colors.muted, fontSize: theme.typography.size.md, letterSpacing: 0.4 },
+  heading: { paddingTop: theme.spacing.xl, paddingBottom: theme.spacing.md },
+  hello: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.size.sm,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    fontWeight: theme.typography.weight.medium
+  },
   title: {
     color: theme.colors.text,
     fontSize: theme.typography.size.display,
-    fontWeight: theme.typography.weight.bold,
-    marginTop: 2
+    fontWeight: theme.typography.weight.black,
+    marginTop: theme.spacing.xs,
+    letterSpacing: -0.5
+  },
+  taglineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.sm
+  },
+  taglineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.primary
+  },
+  tagline: {
+    color: theme.colors.mutedStrong,
+    fontSize: theme.typography.size.sm,
+    letterSpacing: 0.3
   },
   skeletonGrid: { flexDirection: 'row', marginTop: theme.spacing.md },
   balanceCard: { backgroundColor: theme.colors.surface2, paddingVertical: theme.spacing.xl },

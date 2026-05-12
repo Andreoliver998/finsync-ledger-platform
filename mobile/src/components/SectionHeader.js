@@ -7,7 +7,10 @@ export function SectionHeader({ title, subtitle, actionLabel, onActionPress, sty
   return (
     <View style={[styles.row, style]}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.title}>{title}</Text>
+        </View>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       {actionLabel ? (
@@ -26,6 +29,17 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.md
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm
+  },
+  accentBar: {
+    width: 3,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: theme.colors.primary
+  },
   title: {
     color: theme.colors.text,
     fontSize: theme.typography.size.xl,
@@ -35,7 +49,8 @@ const styles = StyleSheet.create({
   subtitle: {
     color: theme.colors.muted,
     fontSize: theme.typography.size.sm,
-    marginTop: 2
+    marginTop: 3,
+    marginLeft: 11
   },
   action: {
     color: theme.colors.primary,

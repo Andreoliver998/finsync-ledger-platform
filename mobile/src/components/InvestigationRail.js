@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppCard } from '@components/AppCard';
 import { theme } from '@theme/index';
@@ -42,6 +43,12 @@ export function InvestigationRail({ title, subtitle, items, icon = 'time-outline
             android_ripple={{ color: theme.colors.primarySoft }}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
           >
+            <LinearGradient
+              colors={[theme.colors.secondarySoft, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
             <View style={styles.cardHeader}>
               <View style={styles.iconWrap}>
                 <Ionicons name={icon} size={14} color={theme.colors.secondary} />
@@ -90,8 +97,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.borderStrong
+    borderWidth: 1,
+    borderColor: theme.colors.borderStrong,
+    overflow: 'hidden'
   },
   pressed: { opacity: 0.84 },
   cardHeader: {

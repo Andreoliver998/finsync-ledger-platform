@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppButton } from '@components/AppButton';
 import { AppCard } from '@components/AppCard';
@@ -52,16 +53,102 @@ function hasAnyContent(r) {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────────
 
-function ConfidenceBadge({ value }) {
+function getConfidencePalette(pct) {
+  if (pct >= 80) return { color: theme.colors.success, bg: theme.colors.successSoft };
+  if (pct >= 50) return { color: theme.colors.warning, bg: theme.colors.warningSoft };
+  return { color: theme.colors.muted, bg: theme.colors.surface };
+}
+
+function ConfidenceBadge({ value, compact = false }) {
   if (value == null) return null;
   const pct = Math.round(value <= 1 ? value * 100 : value);
-  const color =
-    pct >= 80 ? theme.colors.success : pct >= 50 ? theme.colors.warning : theme.colors.muted;
+  const palette = getConfidencePalette(pct);
   return (
-    <View style={localStyles.confBadge}>
-      <Ionicons name="shield-checkmark-outline" size={12} color={color} />
-      <Text style={[localStyles.confText, { color }]}>{pct}% confiança</Text>
+    <View
+      style={[
+        localStyles.confBadge,
+        { backgroundColor: palette.bg, borderColor: palette.color + '44' },
+        compact && localStyles.confBadgeCompact
+      ]}
+    >
+      <Ionicons name="shield-checkmark" size={12} color={palette.color} />
+      <Text style={[localStyles.confText, { color: palette.color }]}>{pct}% confiança</Text>
     </View>
+  );
+}
+
+function AIBadge() {
+  return (
+    <View style={localStyles.aiBadge}>
+      <View style={localStyles.aiBadgeDot} />
+      <Ionicons name="sparkles" size={11} color={theme.colors.primaryStrong} />
+      <Text style={localStyles.aiBadgeText}>IA · Análise</Text>
+    </View>
+  );
+}
+
+function getSeverityPalette(severity) {
+  const s = safeText(severity, '').toLowerCase();
+  if (s === 'danger' || s === 'critical' || s === 'high' || s === 'alto') {
+    return { color: theme.colors.danger, bg: theme.colors.dangerSoft, label: 'Crítico', icon: 'warning' };
+  }
+  if (s === 'warning' || s === 'medium' || s === 'médio' || s === 'medio' || s === 'atenção' || s === 'atencao') {
+    return { color: theme.colors.warning, bg: theme.colors.warningSoft, label: 'Atenção', icon: 'alert-circle' };
+  }
+  if (s === 'positive' || s === 'success' || s === 'opportunity' || s === 'oportunidade') {
+    return { color: theme.colors.success, bg: theme.colors.successSoft, label: 'Oportunidade', icon: 'trending-up' };
+  }
+  if (s === 'info' || s === 'informational' || !s) {
+    return { color: theme.colors.secondary, bg: theme.colors.secondarySoft, label: 'Insight', icon: 'sparkles' };
+  }
+  return { color: theme.colors.secondary, bg: theme.colors.secondarySoft, label: safeText(severity, 'Insight'), icon: 'sparkles' };
+}
+
+function SeverityBadge({ severity }) {
+  const palette = getSeverityPalette(severity);
+  return (
+    <View style={[localStyles.severityBadge, { backgroundColor: palette.bg }]}>
+      <Ionicons name={palette.icon} size={11} color={palette.color} />
+      <Text style={[localStyles.severityText, { color: palette.color }]} numberOfLines={1}>
+        {palette.label}
+      </Text>
+    </View>
+  );
+}
+
+function HeroCard({ reading }) {
+  const hasPeriod = reading.period?.hasPeriod;
+  return (
+    <AppCard variant="premium" style={localStyles.heroCard}>
+      <LinearGradient
+        colors={[theme.colors.primarySoft, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1.1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={localStyles.heroTopRow}>
+        <AIBadge />
+        <ConfidenceBadge value={reading.confidence} compact />
+      </View>
+      <Text style={localStyles.heroTitle} numberOfLines={3}>
+        {reading.headline}
+      </Text>
+      {reading.summary ? (
+        <Text style={localStyles.heroSummary} numberOfLines={6}>
+          {reading.summary}
+        </Text>
+      ) : null}
+      <View style={localStyles.heroDivider} />
+      <View style={localStyles.heroPeriodRow}>
+        <View style={localStyles.heroPeriodIcon}>
+          <Ionicons name="calendar-outline" size={13} color={theme.colors.action} />
+        </View>
+        <Text style={localStyles.heroPeriodLabel}>Período analisado</Text>
+        <Text style={localStyles.heroPeriodValue} numberOfLines={1}>
+          {hasPeriod ? formatPeriodLabel(reading.period) : 'Toda a base'}
+        </Text>
+      </View>
+    </AppCard>
   );
 }
 
@@ -107,11 +194,11 @@ function MoneyFlowBar({ income, expense }) {
 function AlertItem({ alert }) {
   const severity = safeText(alert.severity || alert.level, 'info');
   const palette =
-    severity === 'danger' || severity === 'critical'
-      ? { color: theme.colors.danger, bg: theme.colors.dangerSoft, icon: 'warning-outline' }
-      : severity === 'warning'
-      ? { color: theme.colors.warning, bg: theme.colors.warningSoft, icon: 'alert-circle-outline' }
-      : { color: theme.colors.secondary, bg: theme.colors.secondarySoft, icon: 'information-circle-outline' };
+    severity === 'danger' || severity === 'critical' || severity === 'high'
+      ? { color: theme.colors.danger, bg: theme.colors.dangerSoft, icon: 'warning', label: 'Crítico' }
+      : severity === 'warning' || severity === 'medium'
+      ? { color: theme.colors.warning, bg: theme.colors.warningSoft, icon: 'alert-circle', label: 'Atenção' }
+      : { color: theme.colors.secondary, bg: theme.colors.secondarySoft, icon: 'information-circle', label: 'Info' };
 
   const title = safeText(alert.title);
   const description = safeText(alert.description || alert.text || alert.message);
@@ -119,11 +206,19 @@ function AlertItem({ alert }) {
 
   return (
     <View style={localStyles.alertRow}>
+      <View style={[localStyles.alertAccent, { backgroundColor: palette.color }]} />
       <View style={[localStyles.alertIconWrap, { backgroundColor: palette.bg }]}>
         <Ionicons name={safeText(alert.icon, palette.icon)} size={16} color={palette.color} />
       </View>
       <View style={localStyles.alertContent}>
-        {title ? <Text style={localStyles.alertTitle}>{title}</Text> : null}
+        <View style={localStyles.alertTitleRow}>
+          {title ? <Text style={localStyles.alertTitle} numberOfLines={2}>{title}</Text> : null}
+          <View style={[localStyles.alertSeverityPill, { backgroundColor: palette.bg }]}>
+            <Text style={[localStyles.alertSeverityText, { color: palette.color }]}>
+              {palette.label}
+            </Text>
+          </View>
+        </View>
         {description ? (
           <Text style={localStyles.alertDescription} numberOfLines={4}>
             {description}
@@ -226,15 +321,34 @@ function PeriodPanel({ period }) {
   );
 }
 
-function EvidenceSection({ evidenceItems = [], relatedTransactions = [], transactionId, onOpenTransaction }) {
+function EvidenceSection({
+  evidenceItems = [],
+  relatedTransactions = [],
+  transactionId,
+  onOpenTransaction,
+  initialVisibleChips = 8,
+  initialVisibleTransactions = 3,
+  collapsible = false
+}) {
+  const [expanded, setExpanded] = useState(!collapsible);
   const hasEvidence = evidenceItems.length || relatedTransactions.length || transactionId;
   if (!hasEvidence) return null;
+
+  const chipsToShow = expanded ? evidenceItems : evidenceItems.slice(0, initialVisibleChips);
+  const txsToShow = expanded ? relatedTransactions : relatedTransactions.slice(0, initialVisibleTransactions);
+  const hiddenChips = Math.max(0, evidenceItems.length - chipsToShow.length);
+  const hiddenTxs = Math.max(0, relatedTransactions.length - txsToShow.length);
+  const canExpand = collapsible && (hiddenChips > 0 || hiddenTxs > 0);
+
   return (
     <View style={localStyles.evidenceBox}>
-      <Text style={localStyles.evidenceTitle}>Evidências do insight</Text>
-      {evidenceItems.length ? (
+      <View style={localStyles.evidenceHeader}>
+        <Ionicons name="document-text-outline" size={13} color={theme.colors.muted} />
+        <Text style={localStyles.evidenceTitle}>Evidências do insight</Text>
+      </View>
+      {chipsToShow.length ? (
         <View style={localStyles.evidenceChips}>
-          {evidenceItems.map((item, index) => (
+          {chipsToShow.map((item, index) => (
             <InfoChip
               key={buildStableKey(item.type, item.label, item.value, index + 1)}
               icon={
@@ -269,9 +383,9 @@ function EvidenceSection({ evidenceItems = [], relatedTransactions = [], transac
           />
         </View>
       ) : null}
-      {relatedTransactions.length ? (
+      {txsToShow.length ? (
         <View style={localStyles.relatedMiniList}>
-          {relatedTransactions.slice(0, 3).map((transaction, index) => (
+          {txsToShow.map((transaction, index) => (
             <View
               key={buildStableKey(
                 transaction.id,
@@ -282,6 +396,7 @@ function EvidenceSection({ evidenceItems = [], relatedTransactions = [], transac
               )}
               style={localStyles.relatedMiniRow}
             >
+              <View style={localStyles.relatedMiniDot} />
               <View style={{ flex: 1 }}>
                 <Text style={localStyles.relatedMiniTitle} numberOfLines={1}>
                   {safeText(transaction.description || transaction.merchant, 'Transação relacionada')}
@@ -297,6 +412,25 @@ function EvidenceSection({ evidenceItems = [], relatedTransactions = [], transac
             </View>
           ))}
         </View>
+      ) : null}
+      {collapsible && (hiddenChips > 0 || hiddenTxs > 0 || expanded) ? (
+        <Pressable
+          onPress={() => setExpanded((prev) => !prev)}
+          hitSlop={8}
+          style={localStyles.evidenceToggle}
+          android_ripple={{ color: theme.colors.primarySoft }}
+        >
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={theme.colors.primary}
+          />
+          <Text style={localStyles.evidenceToggleText}>
+            {expanded
+              ? 'Recolher evidências'
+              : `Ver mais (${hiddenChips + hiddenTxs})`}
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -318,9 +452,9 @@ function InsightInvestigationCard({
   const title = safeText(insight.title, 'Insight');
   const description = safeText(insight.description, '');
   const severity = safeText(insight.severity, 'info');
+  const severityPalette = getSeverityPalette(severity);
   const confidence = insight.confidence == null ? null : Math.round(insight.confidence <= 1 ? insight.confidence * 100 : insight.confidence);
   const chips = [
-    { icon: 'alert-circle-outline', label: 'Severidade', value: severity },
     confidence != null ? { icon: 'shield-checkmark-outline', label: 'Confiança', value: `${confidence}%` } : null,
     { icon: 'calendar-outline', label: 'Período', value: insight.period?.hasPeriod ? formatPeriodLabel(insight.period) : '' },
     { icon: 'person-circle-outline', label: 'Entidade', value: insight.entity },
@@ -344,17 +478,23 @@ function InsightInvestigationCard({
     ...(insightEvidence.length ? [] : globalEvidence)
   ];
   const safePrimaryLabel = safeText(primaryActionLabel, '').trim();
+  const hasPrimary = Boolean(safePrimaryLabel && onPrimaryAction);
 
   return (
     <AppCard variant="elevated" style={localStyles.insightInvestigationCard}>
+      <View style={[localStyles.insightAccentBar, { backgroundColor: severityPalette.color }]} />
+
       <View style={localStyles.insightHeader}>
-        <View style={localStyles.insightIconWrap}>
-          <Ionicons name="sparkles-outline" size={17} color={theme.colors.primary} />
+        <View style={[localStyles.insightIconWrap, { backgroundColor: severityPalette.bg }]}>
+          <Ionicons name={severityPalette.icon} size={17} color={severityPalette.color} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={localStyles.insightTitle} numberOfLines={2}>
-            {title}
-          </Text>
+          <View style={localStyles.insightTitleRow}>
+            <Text style={localStyles.insightTitle} numberOfLines={2}>
+              {title}
+            </Text>
+            <SeverityBadge severity={severity} />
+          </View>
           {description ? (
             <Text style={localStyles.insightDescription} numberOfLines={5}>
               {description}
@@ -384,8 +524,15 @@ function InsightInvestigationCard({
       />
 
       <View style={localStyles.contextActions}>
-        {safePrimaryLabel && onPrimaryAction ? (
-          <AppButton label={safePrimaryLabel} size="sm" variant="ghost" fullWidth={false} onPress={onPrimaryAction} />
+        {hasPrimary ? (
+          <AppButton
+            label={safePrimaryLabel}
+            size="sm"
+            variant="primary"
+            fullWidth={false}
+            iconRight={<Ionicons name="arrow-forward" size={14} color="#FFFFFF" />}
+            onPress={onPrimaryAction}
+          />
         ) : null}
         {insight.entity && primaryActionRoute !== 'FinancialProfile' ? (
           <AppButton label="Abrir entidade" size="sm" variant="ghost" fullWidth={false} onPress={onOpenEntity} />
@@ -399,9 +546,10 @@ function InsightInvestigationCard({
         {relatedTransactions.length > 1 && primaryActionRoute !== 'TransactionsTab' ? (
           <AppButton label="Ver transações" size="sm" variant="ghost" fullWidth={false} onPress={onOpenTransactions} />
         ) : null}
-        <Text onPress={onOpenDetails} style={localStyles.detailCta}>
-          Ver detalhe →
-        </Text>
+        <Pressable onPress={onOpenDetails} hitSlop={10} style={localStyles.detailCtaWrap}>
+          <Text style={localStyles.detailCta}>Ver detalhe</Text>
+          <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
+        </Pressable>
       </View>
     </AppCard>
   );
@@ -440,13 +588,24 @@ function MerchantRow({ item, index, onOpen }) {
 function ReadingEmptyState({ navigation }) {
   return (
     <AppScreen padded scroll>
-      <View style={localStyles.hero}>
-        <Text style={localStyles.label}>Leitura Inteligente</Text>
-        <Text style={localStyles.title}>Ainda sem análise</Text>
-        <Text style={localStyles.summary}>
-          A análise inteligente é gerada a partir do seu histórico financeiro. Importe extratos ou
-          aguarde novas transações para ativar esta funcionalidade.
-        </Text>
+      <View style={localStyles.heroSection}>
+        <Text style={localStyles.heroEyebrow}>Leitura Inteligente</Text>
+        <AppCard variant="premium" style={localStyles.heroCard}>
+          <LinearGradient
+            colors={[theme.colors.primarySoft, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1.1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={localStyles.heroTopRow}>
+            <AIBadge />
+          </View>
+          <Text style={localStyles.heroTitle}>Ainda sem análise</Text>
+          <Text style={localStyles.heroSummary}>
+            A análise inteligente é gerada a partir do seu histórico financeiro. Importe extratos ou
+            aguarde novas transações para ativar esta funcionalidade.
+          </Text>
+        </AppCard>
       </View>
 
       <AppCard variant="elevated" style={localStyles.emptyCard}>
@@ -657,12 +816,37 @@ export function IntelligentReadingScreen({ navigation }) {
   if (query.isPending) {
     return (
       <AppScreen padded scroll>
-        <LoadingSkeleton width="50%" height={14} />
-        <LoadingSkeleton width="75%" height={30} style={{ marginTop: theme.spacing.sm }} />
-        <LoadingSkeleton width="100%" height={80} style={{ marginTop: theme.spacing.md }} />
-        <LoadingSkeleton width="100%" height={130} style={{ marginTop: theme.spacing.lg }} />
-        <LoadingSkeleton width="100%" height={130} style={{ marginTop: theme.spacing.md }} />
-        <LoadingSkeleton width="100%" height={100} style={{ marginTop: theme.spacing.md }} />
+        <View style={localStyles.heroSection}>
+          <LoadingSkeleton width={140} height={12} />
+          <AppCard variant="premium" style={[localStyles.heroCard, { marginTop: theme.spacing.md }]}>
+            <View style={localStyles.heroTopRow}>
+              <LoadingSkeleton width={110} height={22} radius={theme.radius.pill} />
+              <LoadingSkeleton width={90} height={22} radius={theme.radius.pill} />
+            </View>
+            <LoadingSkeleton width="90%" height={28} style={{ marginTop: theme.spacing.md }} />
+            <LoadingSkeleton width="70%" height={28} style={{ marginTop: theme.spacing.xs }} />
+            <LoadingSkeleton width="100%" height={14} style={{ marginTop: theme.spacing.md }} />
+            <LoadingSkeleton width="85%" height={14} style={{ marginTop: theme.spacing.xs }} />
+            <View style={localStyles.heroDivider} />
+            <LoadingSkeleton width="60%" height={14} />
+          </AppCard>
+        </View>
+        <LoadingSkeleton width="40%" height={18} style={{ marginTop: theme.spacing.xl }} />
+        <AppCard variant="elevated" style={{ marginTop: theme.spacing.md, gap: theme.spacing.md }}>
+          <LoadingSkeleton width="100%" height={10} radius={5} />
+          <LoadingSkeleton width="80%" height={14} />
+          <LoadingSkeleton width="100%" height={14} />
+        </AppCard>
+        <AppCard variant="elevated" style={{ marginTop: theme.spacing.md, gap: theme.spacing.md }}>
+          <LoadingSkeleton width="60%" height={16} />
+          <LoadingSkeleton width="100%" height={14} />
+          <LoadingSkeleton width="90%" height={14} />
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <LoadingSkeleton width={90} height={22} radius={theme.radius.pill} />
+            <LoadingSkeleton width={110} height={22} radius={theme.radius.pill} />
+            <LoadingSkeleton width={70} height={22} radius={theme.radius.pill} />
+          </View>
+        </AppCard>
       </AppScreen>
     );
   }
@@ -692,16 +876,11 @@ export function IntelligentReadingScreen({ navigation }) {
   return (
     <AppScreen scroll refreshing={query.isFetching} onRefresh={() => query.refetch()}>
 
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <View style={localStyles.hero}>
-        <Text style={localStyles.label}>Leitura Inteligente</Text>
-        <Text style={localStyles.title}>{reading.headline}</Text>
-        {reading.summary ? (
-          <Text style={localStyles.summary}>{reading.summary}</Text>
-        ) : null}
-        <ConfidenceBadge value={reading.confidence} />
+      {/* ── Hero Premium ──────────────────────────────────────── */}
+      <View style={localStyles.heroSection}>
+        <Text style={localStyles.heroEyebrow}>Leitura Inteligente</Text>
+        <HeroCard reading={reading} />
       </View>
-      <PeriodPanel period={reading.period} />
       <InvestigationHeader
         navigation={navigation}
         summary={reading.summary || reading.narrative || reading.headline}
@@ -918,8 +1097,8 @@ export function IntelligentReadingScreen({ navigation }) {
       {/* ── Recomendações ─────────────────────────────────────── */}
       {reading.recommendations.length > 0 ? (
         <>
-          <SectionHeader title="Recomendações" subtitle="O que você pode melhorar" />
-          <AppCard variant="outline">
+          <SectionHeader title="Recomendações" subtitle="Sugestões consultivas baseadas nos seus padrões" />
+          <AppCard variant="elevated" style={localStyles.recCard}>
             {reading.recommendations.map((rec, i) => {
               const text =
                 typeof rec === 'string'
@@ -929,14 +1108,18 @@ export function IntelligentReadingScreen({ navigation }) {
               return (
                 <View
                   key={buildStableKey(rec?.id, rec?.type, text, rec?.timestamp || rec?.createdAt, i + 1)}
-                  style={localStyles.recRow}
+                  style={[
+                    localStyles.recRow,
+                    i === reading.recommendations.length - 1 && localStyles.recRowLast
+                  ]}
                 >
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={18}
-                    color={theme.colors.accent}
-                    style={{ marginTop: 1 }}
-                  />
+                  <View style={localStyles.recIconWrap}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={16}
+                      color={theme.colors.accent}
+                    />
+                  </View>
                   <Text style={localStyles.recText} numberOfLines={4}>
                     {text}
                   </Text>
@@ -953,38 +1136,54 @@ export function IntelligentReadingScreen({ navigation }) {
             title="Próximas perguntas"
             subtitle="Investigações sugeridas automaticamente"
           />
-          <AppCard variant="outline">
+          <View style={localStyles.questionChipsWrap}>
             {reading.suggestedQuestions.map((question, i) => {
               const text = safeText(question, '');
               if (!text) return null;
               return (
-                <View
+                <Pressable
                   key={buildStableKey('question', text, i + 1)}
-                  style={localStyles.recRow}
+                  onPress={() => searchRelated(text)}
+                  android_ripple={{ color: theme.colors.primarySoft }}
+                  style={({ pressed }) => [
+                    localStyles.questionChip,
+                    pressed && localStyles.questionChipPressed
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Investigar: ${text}`}
                 >
-                  <Ionicons
-                    name="help-circle-outline"
-                    size={18}
-                    color={theme.colors.secondary}
-                    style={{ marginTop: 1 }}
-                  />
-                  <Text style={localStyles.recText} numberOfLines={4}>
+                  <View style={localStyles.questionChipIcon}>
+                    <Ionicons
+                      name="help-circle"
+                      size={14}
+                      color={theme.colors.secondary}
+                    />
+                  </View>
+                  <Text style={localStyles.questionChipText} numberOfLines={3}>
                     {text}
                   </Text>
-                </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={14}
+                    color={theme.colors.muted}
+                  />
+                </Pressable>
               );
             })}
-          </AppCard>
+          </View>
         </>
       ) : null}
 
       {reading.evidenceItems.length || reading.relatedTransactions.length ? (
         <>
           <SectionHeader title="Contexto de origem" subtitle="Base usada pela análise inteligente" />
-          <AppCard variant="outline">
+          <AppCard variant="outline" style={localStyles.contextOriginCard}>
             <EvidenceSection
               evidenceItems={reading.evidenceItems}
               relatedTransactions={reading.relatedTransactions}
+              initialVisibleChips={6}
+              initialVisibleTransactions={3}
+              collapsible
             />
           </AppCard>
         </>
@@ -1072,27 +1271,6 @@ export function IntelligentReadingScreen({ navigation }) {
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 
 const localStyles = StyleSheet.create({
-  hero: { paddingTop: theme.spacing.lg, marginBottom: theme.spacing.lg },
-  label: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.size.sm,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase'
-  },
-  title: {
-    color: theme.colors.text,
-    fontSize: theme.typography.size.display,
-    fontWeight: theme.typography.weight.bold,
-    marginTop: theme.spacing.sm,
-    lineHeight: 34
-  },
-  summary: {
-    color: theme.colors.textSubtle,
-    fontSize: theme.typography.size.md,
-    marginTop: theme.spacing.sm,
-    lineHeight: 22,
-    marginBottom: theme.spacing.md
-  },
   periodPanel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1126,12 +1304,17 @@ const localStyles = StyleSheet.create({
     gap: 5,
     backgroundColor: theme.colors.surface2,
     borderRadius: theme.radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 5,
-    alignSelf: 'flex-start',
-    marginTop: theme.spacing.sm
+    alignSelf: 'flex-start'
   },
-  confText: { fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.medium },
+  confBadgeCompact: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4
+  },
+  confText: { fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.semibold },
 
   narrativeCard: { marginBottom: theme.spacing.sm },
   narrativeHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md },
@@ -1290,23 +1473,50 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.md,
     paddingVertical: theme.spacing.md,
+    paddingLeft: theme.spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border
+    borderBottomColor: theme.colors.border,
+    position: 'relative'
+  },
+  alertAccent: {
+    position: 'absolute',
+    left: 0,
+    top: theme.spacing.md,
+    bottom: theme.spacing.md,
+    width: 3,
+    borderRadius: 2
   },
   alertIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0
   },
   alertContent: { flex: 1 },
+  alertTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: 2
+  },
   alertTitle: {
+    flex: 1,
     color: theme.colors.text,
     fontSize: theme.typography.size.md,
-    fontWeight: theme.typography.weight.semibold,
-    marginBottom: 2
+    fontWeight: theme.typography.weight.semibold
+  },
+  alertSeverityPill: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.radius.pill
+  },
+  alertSeverityText: {
+    fontSize: theme.typography.size.xs,
+    fontWeight: theme.typography.weight.bold,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase'
   },
   alertDescription: {
     color: theme.colors.textSubtle,
@@ -1314,6 +1524,7 @@ const localStyles = StyleSheet.create({
     lineHeight: 18
   },
 
+  recCard: { gap: 0 },
   recRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1321,6 +1532,17 @@ const localStyles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border
+  },
+  recRowLast: { borderBottomWidth: 0 },
+  recIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.accentSoft,
+    marginTop: 1,
+    flexShrink: 0
   },
   recText: {
     flex: 1,
@@ -1336,6 +1558,14 @@ const localStyles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.typography.size.sm,
     lineHeight: 18
+  },
+  detailCtaWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 'auto',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6
   },
   detailCta: {
     color: theme.colors.primary,
@@ -1422,26 +1652,42 @@ const localStyles = StyleSheet.create({
   },
   insightInvestigationCard: {
     marginBottom: theme.spacing.md,
-    gap: theme.spacing.md
+    gap: theme.spacing.md,
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  insightAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3
   },
   insightHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: theme.spacing.md
   },
+  insightTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm
+  },
   insightIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primarySoft,
     flexShrink: 0
   },
   insightTitle: {
+    flex: 1,
     color: theme.colors.text,
     fontSize: theme.typography.size.lg,
-    fontWeight: theme.typography.weight.semibold
+    fontWeight: theme.typography.weight.bold,
+    letterSpacing: 0.1
   },
   insightDescription: {
     color: theme.colors.textSubtle,
@@ -1515,5 +1761,187 @@ const localStyles = StyleSheet.create({
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold
   },
-  emptyActionSub: { color: theme.colors.muted, fontSize: theme.typography.size.sm, marginTop: 2 }
+  emptyActionSub: { color: theme.colors.muted, fontSize: theme.typography.size.sm, marginTop: 2 },
+
+  // ── Hero premium ───────────────────────────────────────────
+  heroSection: {
+    paddingTop: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    gap: theme.spacing.md
+  },
+  heroEyebrow: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.size.xs,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    fontWeight: theme.typography.weight.semibold,
+    marginLeft: theme.spacing.xs
+  },
+  heroCard: {
+    overflow: 'hidden',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xl
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm
+  },
+  heroTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.size.display,
+    fontWeight: theme.typography.weight.bold,
+    lineHeight: 34,
+    letterSpacing: -0.3
+  },
+  heroSummary: {
+    color: theme.colors.textSubtle,
+    fontSize: theme.typography.size.md,
+    lineHeight: 22
+  },
+  heroDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.borderStrong,
+    marginTop: theme.spacing.xs
+  },
+  heroPeriodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm
+  },
+  heroPeriodIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: theme.colors.actionSoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  heroPeriodLabel: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.size.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: theme.typography.weight.semibold
+  },
+  heroPeriodValue: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    textAlign: 'right'
+  },
+
+  // ── AI badge ───────────────────────────────────────────────
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 5,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.primaryStrong + '55'
+  },
+  aiBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.primaryStrong
+  },
+  aiBadgeText: {
+    color: theme.colors.primaryStrong,
+    fontSize: theme.typography.size.xs,
+    fontWeight: theme.typography.weight.bold,
+    letterSpacing: 0.3
+  },
+
+  // ── Severity badge ─────────────────────────────────────────
+  severityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.radius.pill,
+    flexShrink: 0
+  },
+  severityText: {
+    fontSize: theme.typography.size.xs,
+    fontWeight: theme.typography.weight.bold,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase'
+  },
+
+  // ── Evidence section refinements ───────────────────────────
+  evidenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  evidenceToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primarySoft
+  },
+  evidenceToggleText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.size.xs,
+    fontWeight: theme.typography.weight.semibold
+  },
+  relatedMiniDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: theme.colors.primary
+  },
+  contextOriginCard: {
+    paddingVertical: theme.spacing.lg
+  },
+
+  // ── Suggested questions chips ──────────────────────────────
+  questionChipsWrap: {
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md
+  },
+  questionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    minHeight: 48
+  },
+  questionChipPressed: {
+    backgroundColor: theme.colors.secondarySoft,
+    borderColor: theme.colors.secondary,
+    opacity: 0.95
+  },
+  questionChipIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.secondarySoft
+  },
+  questionChipText: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.medium,
+    lineHeight: 19
+  }
 });

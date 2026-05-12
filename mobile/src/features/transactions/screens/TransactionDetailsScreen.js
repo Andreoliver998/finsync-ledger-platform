@@ -160,7 +160,8 @@ export function TransactionDetailsScreen({ navigation, route }) {
     openTimelineAnalysis(navigation, {
       title: counterparty || 'Timeline da transação',
       items: [tx, ...relatedTransactions],
-      transactionId
+      transactionId,
+      q: counterparty || ''  // permite filtrar por período na TimelineAnalysisScreen se items vier vazio
     });
   }, [navigation, counterparty, relatedTransactions, transactionId, tx]);
 
@@ -168,7 +169,8 @@ export function TransactionDetailsScreen({ navigation, route }) {
     openRelatedTransactions(navigation, {
       title: counterparty ? `Relacionadas a ${counterparty}` : 'Transações relacionadas',
       items: relatedTransactions,
-      transactionId
+      transactionId,
+      q: counterparty || ''  // habilita busca na RelatedTransactionsScreen se items vier vazio
     });
   }, [navigation, counterparty, relatedTransactions, transactionId]);
 

@@ -36,6 +36,7 @@ function TransactionRowBase({ transaction, onPress }) {
       android_ripple={{ color: theme.colors.primarySoft }}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
+      <View style={[styles.kindStripe, { backgroundColor: icon.color }]} />
       <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
         <Ionicons name={icon.name} size={22} color={icon.color} />
       </View>
@@ -84,7 +85,15 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     marginBottom: theme.spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    overflow: 'hidden'
+  },
+  kindStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3
   },
   rowPressed: { opacity: 0.88 },
   iconWrap: {

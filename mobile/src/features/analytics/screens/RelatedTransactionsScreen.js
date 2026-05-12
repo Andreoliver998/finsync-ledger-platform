@@ -1,23 +1,64 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 
 import { AppCard } from '@components/AppCard';
 import { AppScreen } from '@components/AppScreen';
 import { EmptyState } from '@components/EmptyState';
+import { ErrorState } from '@components/ErrorState';
+import { ListSkeleton } from '@components/LoadingSkeleton';
 import { SectionHeader } from '@components/SectionHeader';
 import { TransactionRow } from '@components/TransactionRow';
 import { theme } from '@theme/index';
 import { normalizeTransaction } from '@utils/analyticsData';
 import { safeText } from '@utils/safeText';
 import { buildStableKey } from '@utils/buildStableKey';
+import { fetchAllTransactions } from '../api/analyticsApi';
 
 export function RelatedTransactionsScreen({ navigation, route }) {
   const title = safeText(route?.params?.title, 'Transações relacionadas');
-  const items = useMemo(
+  const searchQuery = safeText(
+    route?.params?.q || route?.params?.search || route?.params?.query,
+    ''
+  );
+
+  const paramItems = useMemo(
     () => (Array.isArray(route?.params?.items) ? route.params.items.map(normalizeTransaction) : []),
     [route?.params?.items]
   );
+  const hasParamItems = paramItems.length > 0;
+  const canFetch = !hasParamItems && searchQuery.length > 0;
+
+  // Busca dados reais quando não há itens nos params e há um termo de busca
+  const query = useQuery({
+    queryKey: ['related-transactions', searchQuery],
+    queryFn: () => fetchAllTransactions({ search: searchQuery, limit: 50 }),
+    enabled: canFetch,
+    staleTime: 2 * 60 * 1000
+  });
+
+  const items = useMemo(() => {
+    if (hasParamItems) return paramItems;
+    const raw = query.data?.transactions ?? query.data ?? [];
+    return (Array.isArray(raw) ? raw : []).map(normalizeTransaction);
+  }, [hasParamItems, paramItems, query.data]);
+
+  if (canFetch && query.isPending) {
+    return (
+      <AppScreen padded>
+        <ListSkeleton rows={6} />
+      </AppScreen>
+    );
+  }
+
+  if (canFetch && query.isError) {
+    return (
+      <AppScreen padded>
+        <ErrorState error={query.error} onRetry={() => query.refetch()} />
+      </AppScreen>
+    );
+  }
 
   if (!items.length) {
     return (
@@ -32,7 +73,7 @@ export function RelatedTransactionsScreen({ navigation, route }) {
   }
 
   return (
-    <AppScreen scroll>
+    <AppScreen scroll refreshing={canFetch && query.isFetching} onRefresh={canFetch ? () => query.refetch() : undefined}>
       <AppCard variant="elevated" style={styles.hero}>
         <View style={styles.heroRow}>
           <View style={styles.heroIcon}>
