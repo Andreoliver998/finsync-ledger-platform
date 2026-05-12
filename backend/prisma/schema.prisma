@@ -1,0 +1,402 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PIX
+  CASH
+  BANK_TRANSFER
+  OTHER
+}
+
+model User {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  cards           Card[]
+  categories      Category[]
+  transactions    Transaction[]
+  bankConnections BankConnection[]
+  bankAccounts    BankAccount[]
+  financialTransactions FinancialTransaction[]
+  manualTransactions ManualTransaction[]
+  syncLogs        SyncLog[]
+  appSettings     AppSettings?
+  financialGoals  FinancialGoal[]
+  alertRules      AlertRule[]
+  investmentPositions InvestmentPosition[]
+  importBatches   ImportBatch[]
+  ledgerTransactions LedgerTransaction[]
+  oneDriveConnection OneDriveConnection?
+}
+
+model BankConnection {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  provider    String
+  itemId      String   @unique
+  institution String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+  bankAccounts BankAccount[]
+  financialTransactions FinancialTransaction[]
+  syncLogs    SyncLog[]
+
+  @@index([userId])
+  @@index([userId, provider])
+}
+
+model BankAccount {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  connectionId    String   @db.ObjectId
+  pluggyAccountId String   @unique
+  type            String?
+  subtype         String?
+  name            String?
+  marketingName   String?
+  owner           String?
+  number          String?
+  balance         Float?
+  currencyCode    String?  @default("BRL")
+  raw             Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User @relation(fields: [userId], references: [id])
+  connection      BankConnection @relation(fields: [connectionId], references: [id])
+  transactions    FinancialTransaction[]
+
+  @@index([userId])
+  @@index([connectionId])
+}
+
+model FinancialTransaction {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId
+  connectionId        String   @db.ObjectId
+  bankAccountId       String   @db.ObjectId
+  pluggyTransactionId String   @unique
+  description         String?
+  amount              Float
+  currencyCode        String?  @default("BRL")
+  date                DateTime
+  balance             Float?
+  category            String?
+  status              String?
+  type                String?
+  paymentData         Json?
+  creditCardMetadata  Json?
+  raw                 Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User @relation(fields: [userId], references: [id])
+  connection          BankConnection @relation(fields: [connectionId], references: [id])
+  bankAccount         BankAccount @relation(fields: [bankAccountId], references: [id])
+
+  @@index([userId])
+  @@index([connectionId])
+  @@index([bankAccountId])
+  @@index([userId, date])
+}
+
+model ManualTransaction {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  type          String
+  amount        Float
+  date          DateTime
+  description   String
+  category      String?
+  paymentMethod String?
+  place         String?
+  notes         String?
+  bank          String?
+  card          String?
+  installments  Int?
+  isRecurring   Boolean  @default(false)
+  dueDate       DateTime?
+  status        String   @default("PAID")
+  source        String   @default("MANUAL")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, status])
+  @@index([userId, paymentMethod])
+}
+
+model SyncLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  connectionId  String   @db.ObjectId
+  status        String
+  message       String?
+  accountsCount Int      @default(0)
+  transactionsCount Int  @default(0)
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  user          User @relation(fields: [userId], references: [id])
+  connection    BankConnection @relation(fields: [connectionId], references: [id])
+
+  @@index([userId])
+  @@index([connectionId])
+  @@index([status])
+}
+
+model Card {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  name        String
+  bank        String?
+  brand       String?
+  lastFour    String?
+  limit       Float?
+  closingDay  Int?
+  dueDay      Int?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId, isActive])
+}
+
+model Category {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  name        String
+  color       String?
+  icon        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String          @db.ObjectId
+  cardId        String?         @db.ObjectId
+  categoryId    String?         @db.ObjectId
+  description   String
+  amount        Float
+  type          TransactionType
+  paymentMethod PaymentMethod   @default(OTHER)
+  transactionDate DateTime
+  installments  Int?
+  currentInstallment Int?
+  notes         String?
+  externalId    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id])
+  card          Card?           @relation(fields: [cardId], references: [id])
+  category      Category?       @relation(fields: [categoryId], references: [id])
+
+  @@index([userId, transactionDate])
+  @@index([userId, type])
+  @@index([userId, cardId])
+  @@index([userId, categoryId])
+}
+
+model AppSettings {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  currency    String   @default("BRL")
+  locale      String   @default("pt-BR")
+  theme       String   @default("dark")
+  monthlyBudget Float?
+  alertEmail  Boolean  @default(true)
+  alertPush   Boolean  @default(false)
+  dataSharing Boolean  @default(false)
+  userFinancialProfile Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model FinancialGoal {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  name        String
+  targetAmount Float
+  currentAmount Float @default(0)
+  category    String?
+  deadline    DateTime?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model AlertRule {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  name        String
+  type        String
+  threshold   Float?
+  category    String?
+  channel     String   @default("IN_APP")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, isActive])
+}
+
+model InvestmentPosition {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  name        String
+  type        String
+  institution String?
+  investedAmount Float
+  currentAmount  Float?
+  riskLevel   String?
+  liquidity   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, type])
+}
+
+model ImportBatch {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  source          String   @default("CSV_UPLOAD")
+  provider        String?
+  bank            String?
+  accountName     String?
+  fileName        String
+  fileId          String?
+  fileHash        String?
+  fileType        String   @default("CSV")
+  status          String   @default("PENDING")
+  totalRows       Int      @default(0)
+  importedRows    Int      @default(0)
+  duplicatedRows  Int      @default(0)
+  errorRows       Int      @default(0)
+  columnMapping   Json?
+  rawMetadata     Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id])
+  ledgerTransactions LedgerTransaction[]
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([userId, fileHash])
+}
+
+model LedgerTransaction {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String   @db.ObjectId
+  importBatchId         String?  @db.ObjectId
+  matchedTransactionId  String?  @db.ObjectId
+  source                String   @default("CSV_IMPORT")
+  provider              String?
+  bank                  String?
+  accountName           String?
+  transactionHash       String   @unique
+  externalId            String?
+  documentNumber        String?
+  date                  DateTime
+  postedAt              DateTime?
+  description           String
+  normalizedDescription String?
+  amount                Float
+  type                  String
+  paymentMethod         String?
+  tags                  String[]
+  category              String?
+  userCategory          String?
+  subcategory           String?
+  balanceAfter          Float?
+  currencyCode          String   @default("BRL")
+  counterpartyName      String?
+  counterpartyDocument  String?
+  notes                 String?
+  reconciliationStatus  String?
+  reconciliationReason  String?
+  reviewedAt            DateTime?
+  status                String   @default("CONFIRMED")
+  raw                   Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  @@index([userId])
+  @@index([userId, date])
+  @@index([userId, bank, accountName])
+  @@index([userId, category])
+  @@index([userId, paymentMethod])
+  @@index([userId, source])
+  @@index([importBatchId])
+}
+
+model OneDriveConnection {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  microsoftUserId String?
+  displayName     String?
+  email           String?
+  accessToken     String?
+  refreshToken    String?
+  expiresAt       DateTime?
+  status          String   @default("CONNECTED")
+  folderPath      String   @default("/FinSync-Ledger/Entrada")
+  lastSyncAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@index([status])
+}
