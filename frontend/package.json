@@ -1,0 +1,21 @@
+{
+  "name": "finsync-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm exec vite -- --host 0.0.0.0 --port 5174",
+    "build": "npm exec vite -- build",
+    "preview": "npm exec vite -- preview --host 0.0.0.0 --port 5174"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "axios": "latest",
+    "lucide-react": "^0.400.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-pluggy-connect": "^2.12.0",
+    "react-router-dom": "latest",
+    "vite": "latest"
+  }
+}
