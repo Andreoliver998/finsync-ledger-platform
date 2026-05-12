@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "FinSync",
+    "slug": "finsync-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/pay_logo.png",
+    "scheme": "finsync",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D1A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.finsync.mobile"
+    },
+    "android": {
+      "package": "com.finsync.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/pay_logo.png",
+        "backgroundColor": "#000000"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Permite que o FinSync proteja seu token de acesso."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "apiBaseUrlAndroid": "http://10.0.2.2:3334/api",
+      "apiBaseUrlIos": "http://localhost:3334/api",
+      "apiBaseUrlDevice": "http://192.168.1.103:3334/api",
+      "apiTimeoutMs": 15000
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
